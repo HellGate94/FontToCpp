@@ -1,14 +1,14 @@
 ﻿using DotMake.CommandLine;
-using SixLabors.Fonts;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Text;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace FontToCpp;
 
 [CliCommand]
+[SupportedOSPlatform("windows")]
 public class MakeFontCommand {
     [CliArgument(Description = "Font Name or Path to Font")]
     public string Font { get; set; }
@@ -30,25 +30,36 @@ public class MakeFontCommand {
 
     [CliOption(Description = "Alphabet")]
     public string Alphabet { get; set; } = """ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~""";
-
+    
     public void Run() {
-        if (!SystemFonts.TryGet(Font, out var family)) {
+        var fontfam = FontFamily.Families
+                     .Where(c => c.Name == Font)
+                     .FirstOrDefault();
+
+        Font font;
+        
+        if (fontfam is null) {
             if (!File.Exists(Font)) {
                 throw new FileNotFoundException("Could not find Font", Font);
             }
-            FontCollection collection = new();
-            family = collection.Add(Font);
-        }
-        var font = family.CreateFont(Size, Style);
-        TextOptions options = new(font) {
-            KerningMode = KerningMode.None,
-        };
 
-        FontRectangle maxSize = FontRectangle.Empty;
-        foreach (var c in Alphabet) {
-            var cs = TextMeasurer.MeasureAdvance(c.ToString(), options);
-            maxSize = FontRectangle.Union(maxSize, cs);
+            var myFonts = new PrivateFontCollection();
+            myFonts.AddFontFile(Font);
+            font = new Font(myFonts.Families[0], Size, Style, GraphicsUnit.Pixel);
+        } else {
+            font = new Font(fontfam, Size, Style, GraphicsUnit.Pixel);
         }
+
+        SizeF maxSizeF = SizeF.Empty;
+
+        using (var image = new Bitmap(1, 1)) {
+            using var g = Graphics.FromImage(image);
+            foreach (var c in Alphabet) {
+                var cs = g.MeasureString(c.ToString(), font);
+                maxSizeF = new(Math.Max(maxSizeF.Width, cs.Width), Math.Max(maxSizeF.Height, cs.Height));
+            }
+        }
+        Size maxSize = new((int)maxSizeF.Width, (int)maxSizeF.Height);
         Console.WriteLine($"Font '{font.Name}' with Style '{Style}' of Size '{Size}' has the Dimensions: ({maxSize.Width}, {maxSize.Height})");
 
         string fontName = FontSourceName ?? $"{font.Name.Replace(" ", "")}{Size}";
@@ -61,17 +72,17 @@ public class MakeFontCommand {
         sb.AppendLine("{");
 
         Console.Write("Processing: ");
-        Image<L8> img = new((int)maxSize.Width, (int)maxSize.Height);
+        using Bitmap img = new((int)maxSize.Width, (int)maxSize.Height);
+        using Graphics context = Graphics.FromImage(img);
+        context.TextRenderingHint = TextRenderingHint.SingleBitPerPixelGridFit;
         int index = 0;
         foreach (var c in Alphabet) {
             var str = c.ToString();
             Console.Write(str);
-            var cs = TextMeasurer.MeasureAdvance(str, options);
-            img.Mutate((context) => {
-                context.Clear(Color.Black);
-                context.DrawText(str, font, Color.White, new(0, 0));
-            });
-            
+            var cs = context.MeasureString(c.ToString(), font);
+            context.Clear(Color.Black);
+            context.DrawString(str, font, Brushes.White, 0, 0);
+
             var bits = EncodeToBits(img);
 
             sb.AppendLine($"    // @{bits.Length * index} '{c}' ({img.Width} pixels wide)");
@@ -95,7 +106,7 @@ public class MakeFontCommand {
         Console.WriteLine("Done.");
     }
 
-    private byte[] EncodeToBits(Image<L8> img) {
+    private byte[] EncodeToBits(Bitmap img) {
         // Calculate image dimensions
         int width = img.Width;
         int height = img.Height;
@@ -114,7 +125,7 @@ public class MakeFontCommand {
                 int bit_position = 7 - (x % 8);
 
                 // Extract pixel value from the glyph data
-                byte pixel_value = img[x, y].PackedValue;
+                byte pixel_value = img.GetPixel(x, y).R;
 
                 // Set or clear the corresponding bit in the font table byte
                 if (pixel_value > Threshold) {
