@@ -10,11 +10,13 @@ namespace FontToCpp;
 [CliCommand]
 [SupportedOSPlatform("windows")]
 public class MakeFontCommand {
+    private const string Indent = "    ";
+
     [CliArgument(Description = "Font Name or Path to Font")]
-    public string Font { get; set; }
+    public string Font { get; set; } = "Arial";
 
     [CliArgument(Description = "Path for the Output", ValidationRules = CliValidationRules.LegalPath)]
-    public string Output { get; set; }
+    public string Output { get; set; } = "font.c";
 
     [CliOption(Description = "Font Height")]
     public int Size { get; set; } = 24;
@@ -30,14 +32,14 @@ public class MakeFontCommand {
 
     [CliOption(Description = "Alphabet")]
     public string Alphabet { get; set; } = """ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~""";
-    
+
     public void Run() {
         var fontfam = FontFamily.Families
                      .Where(c => c.Name == Font)
                      .FirstOrDefault();
 
         Font font;
-        
+
         if (fontfam is null) {
             if (!File.Exists(Font)) {
                 throw new FileNotFoundException("Could not find Font", Font);
@@ -50,17 +52,42 @@ public class MakeFontCommand {
             font = new Font(fontfam, Size, Style, GraphicsUnit.Pixel);
         }
 
-        SizeF maxSizeF = SizeF.Empty;
+        StringFormat format = StringFormat.GenericDefault;
 
-        using (var image = new Bitmap(1, 1)) {
-            using var g = Graphics.FromImage(image);
+        SizeF maxSizeF = SizeF.Empty;
+        foreach (var c in Alphabet) {
+            var cs = MeasureCharacter(c, font, format);
+            maxSizeF = new(MathF.Max(maxSizeF.Width, cs.Width), MathF.Max(maxSizeF.Height, cs.Height));
+        }
+
+        Size maxSize = new((int)MathF.Ceiling(maxSizeF.Width), (int)MathF.Ceiling(maxSizeF.Height));
+
+        Point min = new(int.MaxValue, int.MaxValue);
+        Point max = new(0, 0);
+        // Refine Bounds for current Alphabet
+        using (Bitmap b = new(maxSize.Width, maxSize.Height)) {
+            using Graphics tg = MakePixelGraphics(b);
+
             foreach (var c in Alphabet) {
-                var cs = g.MeasureString(c.ToString(), font);
-                maxSizeF = new(Math.Max(maxSizeF.Width, cs.Width), Math.Max(maxSizeF.Height, cs.Height));
+                tg.Clear(Color.Black);
+                tg.DrawString(c.ToString(), font, Brushes.White, PointF.Empty, format);
+                tg.Flush();
+                for (int x = 0; x < b.Width; x++) {
+                    for (int y = 0; y < b.Height; y++) {
+                        if (b.GetPixel(x, y).R > Threshold) {
+                            min.X = Math.Min(min.X, x);
+                            min.Y = Math.Min(min.Y, y);
+                            max.X = Math.Max(max.X, x);
+                            max.Y = Math.Max(max.Y, y);
+                        }
+                    }
+                }
             }
         }
-        Size maxSize = new((int)maxSizeF.Width, (int)maxSizeF.Height);
-        Console.WriteLine($"Font '{font.Name}' with Style '{Style}' of Size '{Size}' has the Dimensions: ({maxSize.Width}, {maxSize.Height})");
+
+        maxSize = new((max.X - min.X) + 1, (max.Y - min.Y) + 1);
+
+        Console.WriteLine($"Font '{font.Name}' with Style '{Style}' of Size '{Size}' has the max Dimensions: ({maxSize})");
 
         string fontName = FontSourceName ?? $"{font.Name.Replace(" ", "")}{Size}";
 
@@ -72,21 +99,20 @@ public class MakeFontCommand {
         sb.AppendLine("{");
 
         Console.Write("Processing: ");
-        using Bitmap img = new((int)maxSize.Width, (int)maxSize.Height);
-        using Graphics context = Graphics.FromImage(img);
-        context.TextRenderingHint = TextRenderingHint.SingleBitPerPixelGridFit;
+        using Bitmap img = new(maxSize.Width, maxSize.Height);
+        using Graphics g = MakePixelGraphics(img);
         int index = 0;
+
         foreach (var c in Alphabet) {
             var str = c.ToString();
-            Console.Write(str);
-            var cs = context.MeasureString(c.ToString(), font);
-            context.Clear(Color.Black);
-            context.DrawString(str, font, Brushes.White, 0, 0);
+            g.Clear(Color.Black);
+            g.DrawString(str, font, Brushes.White, new PointF(-min.X, -min.Y), format);
+            g.Flush();
 
             var bits = EncodeToBits(img);
 
-            sb.AppendLine($"    // @{bits.Length * index} '{c}' ({img.Width} pixels wide)");
-            sb.Append("    ");
+            sb.AppendLine($"{Indent}// @{bits.Length * index} '{c}' ({img.Width} pixels wide)");
+            sb.Append(Indent);
             foreach (byte b in bits)
                 sb.Append($"0x{b:x2}, ");
             sb.AppendLine();
@@ -97,13 +123,42 @@ public class MakeFontCommand {
         sb.AppendLine("};");
         sb.AppendLine();
         sb.AppendLine($"sFONT {fontName} = {{");
-        sb.AppendLine($"    {fontName}_Table,");
-        sb.AppendLine($"    {maxSize.Width}, // Width");
-        sb.AppendLine($"    {maxSize.Height}, // Height");
+        sb.AppendLine($"{Indent}{fontName}_Table,");
+        sb.AppendLine($"{Indent}{maxSize.Width}, // Width");
+        sb.AppendLine($"{Indent}{maxSize.Height}, // Height");
         sb.AppendLine("};");
 
         File.WriteAllText(Output, sb.ToString());
         Console.WriteLine("Done.");
+    }
+
+    private static Graphics MakePixelGraphics(Bitmap bmp) {
+        Graphics g = Graphics.FromImage(bmp);
+        g.TextRenderingHint = TextRenderingHint.SingleBitPerPixelGridFit;
+        g.InterpolationMode = InterpolationMode.High;
+        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        g.SmoothingMode = SmoothingMode.None;
+        return g;
+    }
+
+    private static Graphics tmpg = Graphics.FromImage(new Bitmap(1, 1));
+    private static SizeF MeasureCharacter(char c, Font font, StringFormat format) {
+        return tmpg.MeasureString(c.ToString(), font, 0, format);
+    }
+
+    private void WriteImgae(Bitmap img) {
+        // Calculate image dimensions
+        int width = img.Width;
+        int height = img.Height;
+
+        // Loop through each pixel in the image
+        for (int y = 0; y < height; y++) {
+            StringBuilder s = new(width);
+            for (int x = 0; x < width; x++) {
+                s.Append(img.GetPixel(x, y).R > Threshold ? ' ' : 'X');
+            }
+            Console.WriteLine(s);
+        }
     }
 
     private byte[] EncodeToBits(Bitmap img) {
