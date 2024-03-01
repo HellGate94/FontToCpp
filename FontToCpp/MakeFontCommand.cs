@@ -33,6 +33,9 @@ public class MakeFontCommand {
     [CliOption(Description = "Alphabet")]
     public string Alphabet { get; set; } = """ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~""";
 
+    [CliOption(Description = "If Kernings Table should be generated")]
+    public bool Kernings { get; set; } = false;
+
     public void Run() {
         var fontfam = FontFamily.Families
                      .Where(c => c.Name == Font)
@@ -119,9 +122,20 @@ public class MakeFontCommand {
             index++;
         }
         Console.WriteLine();
-
         sb.AppendLine("};");
         sb.AppendLine();
+
+        if (Kernings) {
+            for (int i = 0; i < Alphabet.Length; i++) {
+                for (int j = 0; j < Alphabet.Length; j++) {
+                    char char1 = Alphabet[i];
+                    char char2 = Alphabet[j];
+                    float k = GetApproximateKerning(font, char1, char2, StringFormat.GenericDefault);
+                    Console.WriteLine(k);
+                }
+            }
+        }
+
         sb.AppendLine($"sFONT {fontName} = {{");
         sb.AppendLine($"{Indent}{fontName}_Table,");
         sb.AppendLine($"{Indent}{maxSize.Width}, // Width");
@@ -130,6 +144,19 @@ public class MakeFontCommand {
 
         File.WriteAllText(Output, sb.ToString());
         Console.WriteLine("Done.");
+    }
+
+    public static float GetApproximateKerning(Font font, char char1, char char2, StringFormat format) {
+        // Measure the width of each character individually
+        float char1Width = tmpg.MeasureString(char1.ToString(), font, 0, format).Width;
+        float char2Width = tmpg.MeasureString(char2.ToString(), font, 0, format).Width;
+
+        // Measure the combined width of both characters
+        string combinedString = char1.ToString() + char2.ToString();
+        float combinedWidth = tmpg.MeasureString(combinedString, font, 0, format).Width;
+
+        // Approximate kerning as the difference between combined and individual widths
+        return combinedWidth - (char1Width + char2Width);
     }
 
     private static Graphics MakePixelGraphics(Bitmap bmp) {
@@ -141,7 +168,7 @@ public class MakeFontCommand {
         return g;
     }
 
-    private static Graphics tmpg = Graphics.FromImage(new Bitmap(1, 1));
+    private static Graphics tmpg = MakePixelGraphics(new Bitmap(1, 1));
     private static SizeF MeasureCharacter(char c, Font font, StringFormat format) {
         return tmpg.MeasureString(c.ToString(), font, 0, format);
     }
