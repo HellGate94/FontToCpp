@@ -1,4 +1,5 @@
 ﻿using DotMake.CommandLine;
+using HellEngine.Mathematics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
@@ -56,39 +57,37 @@ public class MakeFontCommand {
         }
 
         StringFormat format = StringFormat.GenericDefault;
+        format.Trimming = StringTrimming.None;
+        format.Alignment = StringAlignment.Near;
+        format.LineAlignment = StringAlignment.Center;
 
-        SizeF maxSizeF = SizeF.Empty;
+        float2 maxSizeF = float2.zero;
         foreach (var c in Alphabet) {
-            var cs = MeasureCharacter(c, font, format);
-            maxSizeF = new(MathF.Max(maxSizeF.Width, cs.Width), MathF.Max(maxSizeF.Height, cs.Height));
+            float2 cs = MeasureCharacter(c, font, format);
+            maxSizeF = math.max(maxSizeF, cs);
         }
 
-        Size maxSize = new((int)MathF.Ceiling(maxSizeF.Width), (int)MathF.Ceiling(maxSizeF.Height));
+        int2 maxSize = (int2)math.ceil(maxSizeF);
 
-        Point min = new(int.MaxValue, int.MaxValue);
-        Point max = new(0, 0);
+        int2x2[] alphabetBounds = new int2x2[Alphabet.Length];
+        int2x2 bounds = new(new(int.MaxValue, int.MaxValue), new(0, 0));
         // Refine Bounds for current Alphabet
-        using (Bitmap b = new(maxSize.Width, maxSize.Height)) {
-            using Graphics tg = MakePixelGraphics(b);
-
+        using (Bitmap b = new(maxSize.x, maxSize.y)) {
+            using Graphics cg = MakePixelGraphics(b);
+            int i = 0;
             foreach (var c in Alphabet) {
-                tg.Clear(Color.Black);
-                tg.DrawString(c.ToString(), font, Brushes.White, PointF.Empty, format);
-                tg.Flush();
-                for (int x = 0; x < b.Width; x++) {
-                    for (int y = 0; y < b.Height; y++) {
-                        if (b.GetPixel(x, y).R > Threshold) {
-                            min.X = Math.Min(min.X, x);
-                            min.Y = Math.Min(min.Y, y);
-                            max.X = Math.Max(max.X, x);
-                            max.Y = Math.Max(max.Y, y);
-                        }
-                    }
-                }
+                cg.Clear(Color.Black);
+                cg.DrawString(c.ToString(), font, Brushes.White, PointF.Empty, format);
+                cg.Flush();
+                var cb = FindPixelBounds(b);
+                alphabetBounds[i] = cb;
+                bounds.r0 = math.min(bounds.r0, cb.r0);
+                bounds.r1 = math.max(bounds.r1, cb.r1);
+                i++;
             }
         }
 
-        maxSize = new((max.X - min.X) + 1, (max.Y - min.Y) + 1);
+        maxSize = (bounds.r1 - bounds.r0) + 1;
 
         Console.WriteLine($"Font '{font.Name}' with Style '{Style}' of Size '{Size}' has the max Dimensions: ({maxSize})");
 
@@ -102,14 +101,14 @@ public class MakeFontCommand {
         sb.AppendLine("{");
 
         Console.Write("Processing: ");
-        using Bitmap img = new(maxSize.Width, maxSize.Height);
+        using Bitmap img = new(maxSize.x, maxSize.y);
         using Graphics g = MakePixelGraphics(img);
         int index = 0;
 
         foreach (var c in Alphabet) {
             var str = c.ToString();
             g.Clear(Color.Black);
-            g.DrawString(str, font, Brushes.White, new PointF(-min.X, -min.Y), format);
+            g.DrawString(str, font, Brushes.White, (float2)(-bounds.r0), format);
             g.Flush();
 
             var bits = EncodeToBits(img);
@@ -126,24 +125,53 @@ public class MakeFontCommand {
         sb.AppendLine();
 
         if (Kernings) {
+            sb.AppendLine($"const sKerningPair {fontName}_Kernings[] = ");
+            sb.AppendLine("{");
             for (int i = 0; i < Alphabet.Length; i++) {
                 for (int j = 0; j < Alphabet.Length; j++) {
-                    char char1 = Alphabet[i];
-                    char char2 = Alphabet[j];
-                    float k = GetApproximateKerning(font, char1, char2, StringFormat.GenericDefault);
-                    Console.WriteLine(k);
+                    char c1 = Alphabet[i];
+                    char c2 = Alphabet[j];
+
+                    var k = GetApproximateKerning(font, c1, c2, format);
+                    if (k != 0) {
+                        static string escape(char c) {
+                            return c switch {
+                                '\'' => "\\'",
+                                '\\' => "\\\\",
+                                _ => c.ToString(),
+                            };
+                        };
+                        sb.AppendLine($"{Indent}{{'{escape(c1)}', '{escape(c2)}', {k}}},");
+                    }
                 }
             }
+            sb.AppendLine("};");
         }
 
         sb.AppendLine($"sFONT {fontName} = {{");
         sb.AppendLine($"{Indent}{fontName}_Table,");
-        sb.AppendLine($"{Indent}{maxSize.Width}, // Width");
-        sb.AppendLine($"{Indent}{maxSize.Height}, // Height");
+        sb.AppendLine($"{Indent}{maxSize.x}, // Width");
+        sb.AppendLine($"{Indent}{maxSize.y}, // Height");
+        if (Kernings)
+            sb.AppendLine($"{Indent}{fontName}_Kernings,");
         sb.AppendLine("};");
 
         File.WriteAllText(Output, sb.ToString());
         Console.WriteLine("Done.");
+        Console.ReadLine();
+    }
+
+    private int2x2 FindPixelBounds(Bitmap b) {
+        int2x2 bounds = new(new(int.MaxValue, int.MaxValue), new(0, 0));
+        for (int x = 0; x < b.Width; x++) {
+            for (int y = 0; y < b.Height; y++) {
+                if (b.GetPixel(x, y).R > Threshold) {
+                    bounds.r0 = math.min(bounds.r0, new(x, y));
+                    bounds.r1 = math.max(bounds.r1, new(x, y));
+                }
+            }
+        }
+        return bounds;
     }
 
     public static float GetApproximateKerning(Font font, char char1, char char2, StringFormat format) {
