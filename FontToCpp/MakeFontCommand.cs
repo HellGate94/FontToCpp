@@ -20,7 +20,7 @@ public class MakeFontCommand {
     public string Output { get; set; } = "font.c";
 
     [CliOption(Description = "Font Height")]
-    public int Size { get; set; } = 24;
+    public int Size { get; set; } = 16;
 
     [CliOption(Description = "Font Style")]
     public FontStyle Style { get; set; } = FontStyle.Regular;
@@ -34,8 +34,7 @@ public class MakeFontCommand {
     [CliOption(Description = "Alphabet")]
     public string Alphabet { get; set; } = """ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~""";
 
-    [CliOption(Description = "If Kernings Table should be generated")]
-    public bool Kernings { get; set; } = false;
+    private record struct CharInfo(int2 Size, int2 Offset, uint MemOffset);
 
     public void Run() {
         var fontfam = FontFamily.Families
@@ -57,134 +56,89 @@ public class MakeFontCommand {
         }
 
         StringFormat format = StringFormat.GenericDefault;
-        format.Trimming = StringTrimming.None;
-        format.Alignment = StringAlignment.Near;
-        format.LineAlignment = StringAlignment.Center;
 
-        float2 maxSizeF = float2.zero;
-        foreach (var c in Alphabet) {
-            float2 cs = MeasureCharacter(c, font, format);
-            maxSizeF = math.max(maxSizeF, cs);
-        }
-
-        int2 maxSize = (int2)math.ceil(maxSizeF);
-
-        int2x2[] alphabetBounds = new int2x2[Alphabet.Length];
-        int2x2 bounds = new(new(int.MaxValue, int.MaxValue), new(0, 0));
-        // Refine Bounds for current Alphabet
-        using (Bitmap b = new(maxSize.x, maxSize.y)) {
-            using Graphics cg = MakePixelGraphics(b);
-            int i = 0;
-            foreach (var c in Alphabet) {
-                cg.Clear(Color.Black);
-                cg.DrawString(c.ToString(), font, Brushes.White, PointF.Empty, format);
-                cg.Flush();
-                var cb = FindPixelBounds(b);
-                alphabetBounds[i] = cb;
-                bounds.r0 = math.min(bounds.r0, cb.r0);
-                bounds.r1 = math.max(bounds.r1, cb.r1);
-                i++;
-            }
-        }
-
-        maxSize = (bounds.r1 - bounds.r0) + 1;
-
-        Console.WriteLine($"Font '{font.Name}' with Style '{Style}' of Size '{Size}' has the max Dimensions: ({maxSize})");
+        Console.WriteLine($"Font '{font.Name}' with Style '{Style}' of Size '{Size}' has the max Dimensions: ()");
 
         string fontName = FontSourceName ?? $"{font.Name.Replace(" ", "")}{Size}";
 
-        StringBuilder sb = new();
+        Console.Write("Processing: ");
 
+        StringBuilder sb = new();
         sb.AppendLine("#include \"fonts.h\"");
         sb.AppendLine();
         sb.AppendLine($"const uint8_t {fontName}_Table[] = ");
         sb.AppendLine("{");
 
-        Console.Write("Processing: ");
-        using Bitmap img = new(maxSize.x, maxSize.y);
-        using Graphics g = MakePixelGraphics(img);
-        int index = 0;
+        CharInfo[] charInfos = new CharInfo[Alphabet.Length];
 
-        foreach (var c in Alphabet) {
+        uint bytes = 0;
+        for (int i = 0; i < Alphabet.Length; i++) {
+            var c = Alphabet[i];
             var str = c.ToString();
+            int2 size = (int2)math.ceil(tmpg.MeasureString(str, font, 0, format));
+            using Bitmap b = new(size.x, size.y);
+            using Graphics g = MakePixelGraphics(b);
+
             g.Clear(Color.Black);
-            g.DrawString(str, font, Brushes.White, (float2)(-bounds.r0), format);
+            g.DrawString(str, font, Brushes.White, PointF.Empty, format);
             g.Flush();
 
-            var bits = EncodeToBits(img);
+            var hasBounds = TryFindPixelBounds(b, out var cb);
+            // no solid pixel found. use a workaround for the workaround...
+            if (!hasBounds) {
+                cb = new(int2.zero, (int2)math.ceil(g.MeasureString(str, font, 0, format)));
+                cb.v1.y = cb.v0.x + 1; // make it 1px high
+            }
 
-            sb.AppendLine($"{Indent}// @{bits.Length * index} '{c}' ({img.Width} pixels wide)");
+            var bits = EncodeToBits(b, cb);
+
+            CharInfo ci = new(cb.v1 - cb.v0, cb.v0, bytes);
+            charInfos[i] = ci;
+
+            sb.AppendLine($"{Indent}// @{bytes} '{c}' ({ci.Size} pixels )");
             sb.Append(Indent);
-            foreach (byte b in bits)
-                sb.Append($"0x{b:x2}, ");
+            foreach (byte bt in bits)
+                sb.Append($"0x{bt:x2}, ");
             sb.AppendLine();
-            index++;
+
+            bytes += (uint)bits.Length;
         }
         Console.WriteLine();
         sb.AppendLine("};");
         sb.AppendLine();
 
-        if (Kernings) {
-            sb.AppendLine($"const sKerningPair {fontName}_Kernings[] = ");
-            sb.AppendLine("{");
-            for (int i = 0; i < Alphabet.Length; i++) {
-                for (int j = 0; j < Alphabet.Length; j++) {
-                    char c1 = Alphabet[i];
-                    char c2 = Alphabet[j];
+        sb.AppendLine($"const sCharInfo {fontName}_Info[] = ");
+        sb.AppendLine("{");
+        for (int i = 0; i < Alphabet.Length; i++) {
+            var ci = charInfos[i];
+            sb.AppendLine($"{Indent}{{ {ci.MemOffset}, {ci.Size.x}, {ci.Size.y}, {ci.Offset.x}, {ci.Offset.y} }},");
 
-                    var k = GetApproximateKerning(font, c1, c2, format);
-                    if (k != 0) {
-                        static string escape(char c) {
-                            return c switch {
-                                '\'' => "\\'",
-                                '\\' => "\\\\",
-                                _ => c.ToString(),
-                            };
-                        };
-                        sb.AppendLine($"{Indent}{{'{escape(c1)}', '{escape(c2)}', {k}}},");
-                    }
-                }
-            }
-            sb.AppendLine("};");
         }
+        sb.AppendLine("};");
 
         sb.AppendLine($"sFONT {fontName} = {{");
         sb.AppendLine($"{Indent}{fontName}_Table,");
-        sb.AppendLine($"{Indent}{maxSize.x}, // Width");
-        sb.AppendLine($"{Indent}{maxSize.y}, // Height");
-        if (Kernings)
-            sb.AppendLine($"{Indent}{fontName}_Kernings,");
+        sb.AppendLine($"{Indent}{fontName}_Info,");
         sb.AppendLine("};");
 
         File.WriteAllText(Output, sb.ToString());
         Console.WriteLine("Done.");
-        Console.ReadLine();
     }
 
-    private int2x2 FindPixelBounds(Bitmap b) {
-        int2x2 bounds = new(new(int.MaxValue, int.MaxValue), new(0, 0));
+    private bool TryFindPixelBounds(Bitmap b, out int2x2 bounds) {
+        bool pixel = false;
+        bounds = new(new(b.Width, b.Height), int2.zero);
         for (int x = 0; x < b.Width; x++) {
             for (int y = 0; y < b.Height; y++) {
                 if (b.GetPixel(x, y).R > Threshold) {
-                    bounds.r0 = math.min(bounds.r0, new(x, y));
-                    bounds.r1 = math.max(bounds.r1, new(x, y));
+                    pixel = true;
+                    int2 p = new(x, y);
+                    bounds.v0 = math.min(bounds.v0, p);
+                    bounds.v1 = math.max(bounds.v1, p + 1);
                 }
             }
         }
-        return bounds;
-    }
-
-    public static float GetApproximateKerning(Font font, char char1, char char2, StringFormat format) {
-        // Measure the width of each character individually
-        float char1Width = tmpg.MeasureString(char1.ToString(), font, 0, format).Width;
-        float char2Width = tmpg.MeasureString(char2.ToString(), font, 0, format).Width;
-
-        // Measure the combined width of both characters
-        string combinedString = char1.ToString() + char2.ToString();
-        float combinedWidth = tmpg.MeasureString(combinedString, font, 0, format).Width;
-
-        // Approximate kerning as the difference between combined and individual widths
-        return combinedWidth - (char1Width + char2Width);
+        return pixel;
     }
 
     private static Graphics MakePixelGraphics(Bitmap bmp) {
@@ -197,11 +151,40 @@ public class MakeFontCommand {
     }
 
     private static Graphics tmpg = MakePixelGraphics(new Bitmap(1, 1));
-    private static SizeF MeasureCharacter(char c, Font font, StringFormat format) {
-        return tmpg.MeasureString(c.ToString(), font, 0, format);
+
+    private byte[] EncodeToBits(Bitmap img, int2x2 bounds) {
+        // Calculate image dimensions
+        int2 size = bounds.v1 - bounds.v0;
+
+        // Initialize output buffer
+        int stride = (size.x + 7) / 8; // Bytes per row (rounded up)
+        int byteCount = stride * size.y;
+
+        byte[] data = new byte[byteCount];
+
+        // Loop through each pixel in the image
+        for (int y = 0; y < size.y; y++) {
+            for (int x = 0; x < size.x; x++) {
+                // Calculate target byte and bit position in the font table
+                int target_byte_index = y * ((size.x + 7) / 8) + x / 8;
+                int bit_position = 7 - (x % 8);
+
+                // Extract pixel value from the glyph data
+                byte pixel_value = img.GetPixel(x + bounds.v0.x, y + bounds.v0.y).R;
+
+                // Set or clear the corresponding bit in the font table byte
+                if (pixel_value > Threshold) {
+                    data[target_byte_index] |= (byte)(1 << bit_position);
+                } else {
+                    data[target_byte_index] &= (byte)~(1 << bit_position);
+                }
+            }
+        }
+
+        return data;
     }
 
-    private void WriteImgae(Bitmap img) {
+    private void WriteImage(Bitmap img) {
         // Calculate image dimensions
         int width = img.Width;
         int height = img.Height;
@@ -214,38 +197,5 @@ public class MakeFontCommand {
             }
             Console.WriteLine(s);
         }
-    }
-
-    private byte[] EncodeToBits(Bitmap img) {
-        // Calculate image dimensions
-        int width = img.Width;
-        int height = img.Height;
-
-        // Initialize output buffer
-        int stride = (img.Width + 7) / 8; // Bytes per row (rounded up)
-        int byteCount = stride * img.Height;
-
-        byte[] data = new byte[byteCount];
-
-        // Loop through each pixel in the image
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                // Calculate target byte and bit position in the font table
-                int target_byte_index = y * ((img.Width + 7) / 8) + x / 8;
-                int bit_position = 7 - (x % 8);
-
-                // Extract pixel value from the glyph data
-                byte pixel_value = img.GetPixel(x, y).R;
-
-                // Set or clear the corresponding bit in the font table byte
-                if (pixel_value > Threshold) {
-                    data[target_byte_index] |= (byte)(1 << bit_position);
-                } else {
-                    data[target_byte_index] &= (byte)~(1 << bit_position);
-                }
-            }
-        }
-
-        return data;
     }
 }

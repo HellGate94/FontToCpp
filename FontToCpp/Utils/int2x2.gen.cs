@@ -24,10 +24,10 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     #region Members
 
     /// <summary>Row 0 of the Matrix</summary>
-    public int2 r0;
+    public int2 v0;
 
     /// <summary>Row 1 of the Matrix</summary>
-    public int2 r1;
+    public int2 v1;
 
     #endregion Members
 
@@ -77,8 +77,8 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <param name="r1">Row 1 values</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int2x2(int2 r0, int2 r1) {
-        this.r0 = r0;
-        this.r1 = r1;
+        this.v0 = r0;
+        this.v1 = r1;
     }
 
     /// <summary>Creates an int2x2 matrix from four int values</summary>
@@ -88,8 +88,8 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <param name="m11">Row 1, Column 1 value</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int2x2(int m00, int m01, int m10, int m11) {
-        this.r0 = new int2(m00, m01);
-        this.r1 = new int2(m10, m11);
+        this.v0 = new int2(m00, m01);
+        this.v1 = new int2(m10, m11);
     }
 
     #endregion Constructors
@@ -100,32 +100,32 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <param name="v">Component values. Converted if necessary</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int2x2(int v) {
-        this.r0 = v;
-        this.r1 = v;
+        this.v0 = v;
+        this.v1 = v;
     }
 
     /// <summary>Creates an int2x2 matrix from a bool value</summary>
     /// <param name="v">Component values. Converted if necessary</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int2x2(bool v) {
-        this.r0 = math.select(int2.zero, int2.one, v);
-        this.r1 = math.select(int2.zero, int2.one, v);
+        this.v0 = math.select(int2.zero, int2.one, v);
+        this.v1 = math.select(int2.zero, int2.one, v);
     }
 
     /// <summary>Creates an int2x2 matrix from an uint value</summary>
     /// <param name="v">Component values. Converted if necessary</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int2x2(uint v) {
-        this.r0 = (int2)v;
-        this.r1 = (int2)v;
+        this.v0 = (int2)v;
+        this.v1 = (int2)v;
     }
 
     /// <summary>Creates an int2x2 matrix from a float value</summary>
     /// <param name="v">Component values. Converted if necessary</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int2x2(float v) {
-        this.r0 = (int2)v;
-        this.r1 = (int2)v;
+        this.v0 = (int2)v;
+        this.v1 = (int2)v;
     }
 
 
@@ -133,8 +133,8 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <param name="v">Component values. Converted if necessary</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int2x2(double v) {
-        this.r0 = (int2)v;
-        this.r1 = (int2)v;
+        this.v0 = (int2)v;
+        this.v1 = (int2)v;
     }
 
     /// <summary>Converts an int value to an int2x2 matrix</summary>
@@ -177,7 +177,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise addition result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator +(in int2x2 left, in int2x2 right) {
-        return new int2x2(left.r0 + right.r0, left.r1 + right.r1);
+        return new int2x2(left.v0 + right.v0, left.v1 + right.v1);
     }
 
     /// <summary>Componentwise addition operation on an int2x2 matrix and an int value</summary>
@@ -186,7 +186,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise addition result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator +(in int2x2 left, in int right) {
-        return new int2x2(left.r0 + right, left.r1 + right);
+        return new int2x2(left.v0 + right, left.v1 + right);
     }
 
     /// <summary>Componentwise addition operation on an int value and an int2x2 matrix</summary>
@@ -195,7 +195,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise addition result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator +(in int left, in int2x2 right) {
-        return new int2x2(left + right.r0, left + right.r1);
+        return new int2x2(left + right.v0, left + right.v1);
     }
 
     /// <summary>Componentwise subtraction operation on two int2x2 matrices</summary>
@@ -204,7 +204,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise subtraction result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator -(in int2x2 left, in int2x2 right) {
-        return new int2x2(left.r0 - right.r0, left.r1 - right.r1);
+        return new int2x2(left.v0 - right.v0, left.v1 - right.v1);
     }
 
     /// <summary>Componentwise subtraction operation on an int2x2 matrix and an int value</summary>
@@ -213,7 +213,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise subtraction result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator -(in int2x2 left, in int right) {
-        return new int2x2(left.r0 - right, left.r1 - right);
+        return new int2x2(left.v0 - right, left.v1 - right);
     }
 
     /// <summary>Componentwise subtraction operation on an int value and an int2x2 matrix</summary>
@@ -222,7 +222,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise subtraction result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator -(in int left, in int2x2 right) {
-        return new int2x2(left - right.r0, left - right.r1);
+        return new int2x2(left - right.v0, left - right.v1);
     }
 
     /// <summary>Componentwise multiplication operation on two int2x2 matrices</summary>
@@ -231,7 +231,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise multiplication result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator *(in int2x2 left, in int2x2 right) {
-        return new int2x2(left.r0 * right.r0, left.r1 * right.r1);
+        return new int2x2(left.v0 * right.v0, left.v1 * right.v1);
     }
 
     /// <summary>Componentwise multiplication operation on an int2x2 matrix and an int value</summary>
@@ -240,7 +240,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise multiplication result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator *(in int2x2 left, in int right) {
-        return new int2x2(left.r0 * right, left.r1 * right);
+        return new int2x2(left.v0 * right, left.v1 * right);
     }
 
     /// <summary>Componentwise multiplication operation on an int value and an int2x2 matrix</summary>
@@ -249,7 +249,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise multiplication result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator *(in int left, in int2x2 right) {
-        return new int2x2(left * right.r0, left * right.r1);
+        return new int2x2(left * right.v0, left * right.v1);
     }
 
     /// <summary>Componentwise division operation on two int2x2 matrices</summary>
@@ -258,7 +258,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise division result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator /(in int2x2 left, in int2x2 right) {
-        return new int2x2(left.r0 / right.r0, left.r1 / right.r1);
+        return new int2x2(left.v0 / right.v0, left.v1 / right.v1);
     }
 
     /// <summary>Componentwise division operation on an int2x2 matrix and an int value</summary>
@@ -267,7 +267,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise division result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator /(in int2x2 left, in int right) {
-        return new int2x2(left.r0 / right, left.r1 / right);
+        return new int2x2(left.v0 / right, left.v1 / right);
     }
 
     /// <summary>Componentwise division operation on an int value and an int2x2 matrix</summary>
@@ -276,7 +276,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise division result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator /(in int left, in int2x2 right) {
-        return new int2x2(left / right.r0, left / right.r1);
+        return new int2x2(left / right.v0, left / right.v1);
     }
 
     /// <summary>Componentwise remainder operation on two int2x2 matrices</summary>
@@ -285,7 +285,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise remainder result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator %(in int2x2 left, in int2x2 right) {
-        return new int2x2(left.r0 % right.r0, left.r1 % right.r1);
+        return new int2x2(left.v0 % right.v0, left.v1 % right.v1);
     }
 
     /// <summary>Componentwise remainder operation on an int2x2 matrix and an int value</summary>
@@ -294,7 +294,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise remainder result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator %(in int2x2 left, in int right) {
-        return new int2x2(left.r0 % right, left.r1 % right);
+        return new int2x2(left.v0 % right, left.v1 % right);
     }
 
     /// <summary>Componentwise remainder operation on an int value and an int2x2 matrix</summary>
@@ -303,7 +303,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise remainder result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator %(in int left, in int2x2 right) {
-        return new int2x2(left % right.r0, left % right.r1);
+        return new int2x2(left % right.v0, left % right.v1);
     }
 
     /// <summary>Componentwise increment operation on an int2x2 matrix</summary>
@@ -311,7 +311,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise increment int2x2 result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator ++(int2x2 value) {
-        return new int2x2(++value.r0, ++value.r1);
+        return new int2x2(++value.v0, ++value.v1);
     }
 
     /// <summary>Componentwise decrement operation on an int2x2 matrix</summary>
@@ -319,7 +319,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise decrement int2x2 result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator --(int2x2 value) {
-        return new int2x2(--value.r0, --value.r1);
+        return new int2x2(--value.v0, --value.v1);
     }
 
     /// <summary>Componentwise unary minus operation on an int2x2 matrix</summary>
@@ -327,7 +327,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise unary minus int2x2 result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator -(int2x2 value) {
-        return new int2x2(-value.r0, -value.r1);
+        return new int2x2(-value.v0, -value.v1);
     }
 
     /// <summary>Componentwise unary plus operation on an int2x2 matrix</summary>
@@ -335,7 +335,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise unary plus int2x2 result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator +(int2x2 value) {
-        return new int2x2(+value.r0, +value.r1);
+        return new int2x2(+value.v0, +value.v1);
     }
 
     /// <summary>Componentwise left shift operation on an int2x2 matrix</summary>
@@ -344,7 +344,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>CComponentwise left shift result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator <<(in int2x2 value, in int shiftAmount) {
-        return new int2x2(value.r0 << shiftAmount, value.r1 << shiftAmount);
+        return new int2x2(value.v0 << shiftAmount, value.v1 << shiftAmount);
     }
 
     /// <summary>Componentwise right shift operation on an int2x2 matrix</summary>
@@ -353,7 +353,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>CComponentwise right shift result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator >>(in int2x2 value, in int shiftAmount) {
-        return new int2x2(value.r0 >> shiftAmount, value.r1 >> shiftAmount);
+        return new int2x2(value.v0 >> shiftAmount, value.v1 >> shiftAmount);
     }
 
     /// <summary>Componentwise bitwise complement operation on an int2x2 matrix</summary>
@@ -361,7 +361,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise bitwise complement int2x2 result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator ~(int2x2 value) {
-        return new int2x2(~value.r0, ~value.r1);
+        return new int2x2(~value.v0, ~value.v1);
     }
 
     /// <summary>Componentwise bitwise and operation on two int2x2 matrices</summary>
@@ -370,7 +370,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise bitwise and result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator &(in int2x2 left, in int2x2 right) {
-        return new int2x2(left.r0 & right.r0, left.r1 & right.r1);
+        return new int2x2(left.v0 & right.v0, left.v1 & right.v1);
     }
 
     /// <summary>Componentwise bitwise and operation on an int2x2 matrix and an int value</summary>
@@ -379,7 +379,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise bitwise and result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator &(in int2x2 left, in int right) {
-        return new int2x2(left.r0 & right, left.r1 & right);
+        return new int2x2(left.v0 & right, left.v1 & right);
     }
 
     /// <summary>Componentwise bitwise and operation on an int value and an int2x2 matrix</summary>
@@ -388,7 +388,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise bitwise and result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator &(in int left, in int2x2 right) {
-        return new int2x2(left & right.r0, left & right.r1);
+        return new int2x2(left & right.v0, left & right.v1);
     }
 
     /// <summary>Componentwise bitwise or operation on two int2x2 matrices</summary>
@@ -397,7 +397,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise bitwise or result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator |(in int2x2 left, in int2x2 right) {
-        return new int2x2(left.r0 | right.r0, left.r1 | right.r1);
+        return new int2x2(left.v0 | right.v0, left.v1 | right.v1);
     }
 
     /// <summary>Componentwise bitwise or operation on an int2x2 matrix and an int value</summary>
@@ -406,7 +406,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise bitwise or result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator |(in int2x2 left, in int right) {
-        return new int2x2(left.r0 | right, left.r1 | right);
+        return new int2x2(left.v0 | right, left.v1 | right);
     }
 
     /// <summary>Componentwise bitwise or operation on an int value and an int2x2 matrix</summary>
@@ -415,7 +415,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise bitwise or result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator |(in int left, in int2x2 right) {
-        return new int2x2(left | right.r0, left | right.r1);
+        return new int2x2(left | right.v0, left | right.v1);
     }
 
     /// <summary>Componentwise bitwise exclusive or operation on two int2x2 matrices</summary>
@@ -424,7 +424,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise bitwise exclusive or result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator ^(in int2x2 left, in int2x2 right) {
-        return new int2x2(left.r0 ^ right.r0, left.r1 ^ right.r1);
+        return new int2x2(left.v0 ^ right.v0, left.v1 ^ right.v1);
     }
 
     /// <summary>Componentwise bitwise exclusive or operation on an int2x2 matrix and an int value</summary>
@@ -433,7 +433,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise bitwise exclusive or result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator ^(in int2x2 left, in int right) {
-        return new int2x2(left.r0 ^ right, left.r1 ^ right);
+        return new int2x2(left.v0 ^ right, left.v1 ^ right);
     }
 
     /// <summary>Componentwise bitwise exclusive or operation on an int value and an int2x2 matrix</summary>
@@ -442,7 +442,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <returns>Componentwise bitwise exclusive or result</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 operator ^(in int left, in int2x2 right) {
-        return new int2x2(left ^ right.r0, left ^ right.r1);
+        return new int2x2(left ^ right.v0, left ^ right.v1);
     }
 
     #endregion Operators
@@ -456,13 +456,13 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override int GetHashCode() {
-        return HashCode.Combine(r0, r1);
+        return HashCode.Combine(v0, v1);
     }
 
     /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(int2x2 other) {
-        return r0.Equals(other.r0) && r1.Equals(other.r1);
+        return v0.Equals(other.v0) && v1.Equals(other.v1);
     }
 
     /// <inheritdoc/>
@@ -475,7 +475,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <summary>Returns a string that represents the current values</summary>
     /// <returns>The values of the current instance with the specified format</returns>
     public override string ToString() {
-        return string.Format("int2x2({0} {1} | {2} {3})", r0.x, r0.y, r1.x, r1.y);
+        return string.Format("int2x2({0} {1} | {2} {3})", v0.x, v0.y, v1.x, v1.y);
     }
 
     /// <summary>Formats the values of the current instance using the specified format</summary>
@@ -483,7 +483,7 @@ public unsafe partial struct int2x2 : IEquatable<int2x2>, IFormattable {
     /// <param name="formatProvider">The provider to use to format the values</param>
     /// <returns>The values of the current instance with the specified format</returns>
     public string ToString(string? format, IFormatProvider? formatProvider) {
-        return string.Format("int2x2({0} {1} | {2} {3})", r0.x.ToString(format, formatProvider), r0.y.ToString(format, formatProvider), r1.x.ToString(format, formatProvider), r1.y.ToString(format, formatProvider));
+        return string.Format("int2x2({0} {1} | {2} {3})", v0.x.ToString(format, formatProvider), v0.y.ToString(format, formatProvider), v1.x.ToString(format, formatProvider), v1.y.ToString(format, formatProvider));
     }
 
     #endregion ToString
@@ -498,8 +498,8 @@ public static unsafe partial class math {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int2x2 transpose(int2x2 v) {
         return new int2x2(
-            v.r0.x, v.r1.x,
-            v.r0.y, v.r1.y
+            v.v0.x, v.v1.x,
+            v.v0.y, v.v1.y
         );
     }
 
